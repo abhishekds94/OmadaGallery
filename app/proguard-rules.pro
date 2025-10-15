@@ -19,3 +19,7 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# Keep models (we’ll keep mappers to handle obfuscation safely)
+-keep class com.yourname.flickrgallery.** { *; }
+-dontnote kotlinx.**
