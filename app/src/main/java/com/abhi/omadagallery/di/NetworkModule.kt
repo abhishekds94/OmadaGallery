@@ -6,6 +6,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import kotlinx.serialization.json.Json
+import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -26,14 +27,18 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideRetrofit(ok: OkHttpClient): Retrofit =
-        Retrofit.Builder()
+    fun provideRetrofit(ok: OkHttpClient): Retrofit {
+        val json = Json { ignoreUnknownKeys = true }
+        val jsonMT = "application/json".toMediaType()
+        val textMT = "text/plain".toMediaType()
+
+        return Retrofit.Builder()
             .baseUrl("https://www.flickr.com/")
             .client(ok)
-            .addConverterFactory(Json {
-                ignoreUnknownKeys = true
-            }.asConverterFactory("application/json".toMediaType()))
+            .addConverterFactory(json.asConverterFactory(jsonMT))
+            .addConverterFactory(json.asConverterFactory(textMT))
             .build()
+    }
 
     @Provides
     @Singleton

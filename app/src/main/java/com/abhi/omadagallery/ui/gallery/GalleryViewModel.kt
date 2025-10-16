@@ -48,19 +48,19 @@ class GalleryViewModel @Inject constructor(
             loadPage(false)
     }
 
-    private fun loadPage(isReset: Boolean, searchQuery: String? = null) {
+    private fun loadPage(reload: Boolean, searchQuery: String? = null) {
         if (loadingJob?.isActive == true) return
         val s = state.value
         val query = searchQuery?.takeIf { it.isNotBlank() } ?: s.query
-        val pageToLoad = Pagination.getNextPage(isReset, s.page)
+        val pageToLoad = Pagination.getNextPage(reload, s.page)
 
         _state.update {
             it.copy(
                 query = query,
                 isLoading = true,
                 error = null,
-                items = if (isReset) emptyList() else it.items,
-                endReached = if (isReset) false else it.endReached
+                items = if (reload) emptyList() else it.items,
+                endReached = if (reload) false else it.endReached
             )
         }
 
@@ -68,7 +68,7 @@ class GalleryViewModel @Inject constructor(
             loadPhotos(query, pageToLoad).collect { ui ->
                 when (ui) {
                     UiState.Loading -> _state.update { it.copy(isLoading = true) }
-                    is UiState.Success -> applySuccess(ui.data, isReset)
+                    is UiState.Success -> applySuccess(ui.data, reload)
                     is UiState.Error -> applyError(ui.message)
                 }
             }

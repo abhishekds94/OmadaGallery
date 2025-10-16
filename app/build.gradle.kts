@@ -1,9 +1,20 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.ksp)
+    kotlin("plugin.serialization")
+    id("com.google.dagger.hilt.android")
+    id("kotlin-parcelize")
 }
+
+val localProps = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
+}
+val flickrKey: String = localProps.getProperty("FLICKR_KEY") ?: "no-api-key"
 
 android {
     namespace = "com.abhi.omadagallery"
@@ -19,7 +30,7 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
 
-        buildConfigField("String","FLICKR_KEY", "\"${project.properties["FLICKR_KEY"] ?: ""}\"")
+        buildConfigField("String", "FLICKR_KEY", "\"$flickrKey\"")
     }
 
     buildFeatures {
@@ -74,6 +85,8 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
+    implementation(libs.hilt.navigation.compose)
+    implementation(libs.androidx.material.icons.extended)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
 

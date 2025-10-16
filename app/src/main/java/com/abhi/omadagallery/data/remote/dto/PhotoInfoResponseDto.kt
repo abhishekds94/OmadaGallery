@@ -4,8 +4,8 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class PhotosResponseDto(
-    @SerialName("photos") val photos: PhotosPageDto? = null,
+data class PhotoInfoResponseDto(
+    @SerialName("photo") val photo: PhotoInfoDto? = null,
     @SerialName("stat") val stat: String,
     @SerialName("code") val code: Int? = null,
     @SerialName("message") val message: String? = null

@@ -1,5 +1,6 @@
 package com.abhi.omadagallery.core
 
+/** Represents the various states of the UI, such as Loading, Success, or Error. */
 sealed interface UiState<out T> {
     data object Loading : UiState<Nothing>
     data class Success<T>(val data: T) : UiState<T>

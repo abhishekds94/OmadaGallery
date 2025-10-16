@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">Omada Gallery</string>
+    <string name="search_photos">Search photos..</string>
+    <string name="btn_retry">Retry</string>
 </resources>
