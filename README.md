@@ -45,6 +45,7 @@ If I had a bit more time, I would have added:
 1. 🤖 **AI Caption Generator** — Auto-generate creative photo captions using on-device or API-based image understanding.
 2. ❤️ **Favorites / Save Offline** — Allow users to bookmark and view images offline.
 3. 🧪 **UI Testing** — Compose UI tests to validate state transitions and navigation flows automatically.
+4. ❌ **Error States** - Better UI and state errors that are for each use-case
 
 ---
 
