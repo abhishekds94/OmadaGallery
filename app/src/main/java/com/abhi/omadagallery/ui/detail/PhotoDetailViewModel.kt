@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.abhi.omadagallery.core.UiState
+import com.abhi.omadagallery.core.mapToDisplayError
 import com.abhi.omadagallery.domain.usecase.LoadPhotoDetail
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -47,7 +48,7 @@ class PhotoDetailViewModel @Inject constructor(
                     is UiState.Error -> _state.update {
                         it.copy(
                             isLoading = false,
-                            error = ui.message.errors()
+                            error = mapToDisplayError(ui.message)
                         )
                     }
                 }
@@ -55,14 +56,3 @@ class PhotoDetailViewModel @Inject constructor(
         }
     }
 }
-
-private fun String?.errors(): String =
-    when {
-        this == null -> "Something went wrong, please try again."
-        contains("Unable to resolve host", ignoreCase = true) ||
-                contains("Network", ignoreCase = true) ||
-                contains("Failed to connect", ignoreCase = true) ||
-                contains("No internet", ignoreCase = true) ->
-            "No active internet. Please try again!"
-        else -> "Something went wrong, please try again."
-    }

@@ -48,11 +48,11 @@ import coil.request.ImageRequest
 import com.abhi.omadagallery.R
 import com.abhi.omadagallery.core.provideImageLoader
 import com.abhi.omadagallery.domain.model.Photo
-import com.abhi.omadagallery.ui.NetworkHolderViewModel
+import com.abhi.omadagallery.ui.NetworkMonitorViewModel
 import com.abhi.omadagallery.ui.common.RequireOnlineOrSnackbar
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.launch
 
 @Composable
 fun GalleryScreen(
@@ -63,20 +63,17 @@ fun GalleryScreen(
     val snackHost = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
-    val networkVM: NetworkHolderViewModel = hiltViewModel()
+    val networkVM: NetworkMonitorViewModel = hiltViewModel()
     val isOnline by networkVM.monitor.online.collectAsState()
 
-    LaunchedEffect(Unit) {
-        vm.effects.collectLatest { eff ->
-            when (eff) {
-                is GalleryEffect.ShowMessage -> {
-                    snackHost.showSnackbar(
-                        message = eff.message,
-                        actionLabel = eff.actionLable,
-                        withDismissAction = true,
-                        duration = SnackbarDuration.Long
-                    )
-                }
+    LaunchedEffect(isOnline) {
+        if (!isOnline) {
+            scope.launch {
+                snackHost.showSnackbar(
+                    message = "No active internet. Please try again!",
+                    withDismissAction = true,
+                    duration = SnackbarDuration.Indefinite
+                )
             }
         }
     }

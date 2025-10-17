@@ -6,6 +6,7 @@ import com.abhi.omadagallery.core.Pagination
 import com.abhi.omadagallery.core.Pagination.hasReachedEnd
 import com.abhi.omadagallery.core.Pagination.mergedWith
 import com.abhi.omadagallery.core.UiState
+import com.abhi.omadagallery.core.mapToDisplayError
 import com.abhi.omadagallery.domain.model.PhotoPage
 import com.abhi.omadagallery.domain.usecase.LoadPhotos
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -95,15 +96,7 @@ class GalleryViewModel @Inject constructor(
     }
 
     private suspend fun applyError(message: String) {
-        val displayMessage = when {
-            message.contains("Unable to resolve host", ignoreCase = true) ||
-                    message.contains("Network", ignoreCase = true) ||
-                    message.contains("Failed to connect", ignoreCase = true) ||
-                    message.contains("No internet", ignoreCase = true) -> {
-                "No active internet. Please try again!"
-            }
-            else -> "Something went wrong. Please try again!"
-        }
+        val displayMessage = mapToDisplayError(message)
 
         val hadItems = state.value.items.isNotEmpty()
         _state.update {

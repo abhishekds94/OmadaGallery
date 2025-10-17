@@ -6,6 +6,6 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
 @HiltViewModel
-class NetworkHolderViewModel @Inject constructor(
+class NetworkMonitorViewModel @Inject constructor(
     val monitor: NetworkMonitor
 ) : ViewModel()
