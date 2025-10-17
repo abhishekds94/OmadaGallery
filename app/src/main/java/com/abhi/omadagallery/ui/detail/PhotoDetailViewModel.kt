@@ -47,7 +47,7 @@ class PhotoDetailViewModel @Inject constructor(
                     is UiState.Error -> _state.update {
                         it.copy(
                             isLoading = false,
-                            error = ui.message
+                            error = ui.message.errors()
                         )
                     }
                 }
@@ -55,3 +55,14 @@ class PhotoDetailViewModel @Inject constructor(
         }
     }
 }
+
+private fun String?.errors(): String =
+    when {
+        this == null -> "Something went wrong, please try again."
+        contains("Unable to resolve host", ignoreCase = true) ||
+                contains("Network", ignoreCase = true) ||
+                contains("Failed to connect", ignoreCase = true) ||
+                contains("No internet", ignoreCase = true) ->
+            "No active internet. Please try again!"
+        else -> "Something went wrong, please try again."
+    }

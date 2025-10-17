@@ -95,15 +95,25 @@ class GalleryViewModel @Inject constructor(
     }
 
     private suspend fun applyError(message: String) {
+        val displayMessage = when {
+            message.contains("Unable to resolve host", ignoreCase = true) ||
+                    message.contains("Network", ignoreCase = true) ||
+                    message.contains("Failed to connect", ignoreCase = true) ||
+                    message.contains("No internet", ignoreCase = true) -> {
+                "No active internet. Please try again!"
+            }
+            else -> "Something went wrong. Please try again!"
+        }
+
         val hadItems = state.value.items.isNotEmpty()
         _state.update {
             it.copy(
                 isLoading = false,
-                error = message
+                error = displayMessage
             )
         }
         if (hadItems) {
-            _effects.send(GalleryEffect.ShowMessage(message, "Retry"))
+            _effects.send(GalleryEffect.ShowMessage(displayMessage, "Retry"))
         }
     }
 }
