@@ -74,3 +74,7 @@ If I had a bit more time, I would have added:
 | **Build**         | Gradle (KTS)                            |
 
 ---
+## Screen Recordings
+* App Working with Explainations - https://youtube.com/shorts/xsFG1TSiC1w
+* Usage of AI - https://youtu.be/xjmWLj9YwSs
+* Coding style capture - https://youtu.be/ga_4voLej7k
