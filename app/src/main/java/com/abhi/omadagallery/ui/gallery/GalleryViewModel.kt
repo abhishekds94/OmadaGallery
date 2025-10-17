@@ -103,7 +103,7 @@ class GalleryViewModel @Inject constructor(
             )
         }
         if (hadItems) {
-            _effects.send(GalleryEffect.ShowMessage(message))
+            _effects.send(GalleryEffect.ShowMessage(message, "Retry"))
         }
     }
 }

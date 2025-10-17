@@ -22,5 +22,5 @@ data class GalleryState(
 }
 
 sealed interface GalleryEffect {
-    data class ShowMessage(val message: String) : GalleryEffect
+    data class ShowMessage(val message: String, val actionLable: String? = null) : GalleryEffect
 }

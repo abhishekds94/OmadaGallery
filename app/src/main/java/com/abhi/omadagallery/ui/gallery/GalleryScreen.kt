@@ -1,63 +1,47 @@
 package com.abhi.omadagallery.ui.gallery
 
-import android.R.attr.contentDescription
 import android.content.res.Configuration
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
-import androidx.compose.foundation.lazy.grid.rememberLazyGridState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import coil.compose.AsyncImagePainter
 import coil.request.ImageRequest
@@ -65,7 +49,9 @@ import com.abhi.omadagallery.R
 import com.abhi.omadagallery.core.provideImageLoader
 import com.abhi.omadagallery.domain.model.Photo
 import com.abhi.omadagallery.ui.NetworkHolderViewModel
+import com.abhi.omadagallery.ui.common.RequireOnlineOrSnackbar
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.emptyFlow
 
 @Composable
@@ -75,38 +61,53 @@ fun GalleryScreen(
 ) {
     val state by vm.state.collectAsState()
     val snackHost = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     val networkVM: NetworkHolderViewModel = hiltViewModel()
     val isOnline by networkVM.monitor.online.collectAsState()
 
     LaunchedEffect(Unit) {
-        if (state.items.isEmpty()) {
-            vm.handleIntent(GalleryIntent.LoadInitial)
+        vm.effects.collectLatest { eff ->
+            when (eff) {
+                is GalleryEffect.ShowMessage -> {
+                    snackHost.showSnackbar(
+                        message = eff.message,
+                        actionLabel = eff.actionLable,
+                        withDismissAction = true,
+                        duration = SnackbarDuration.Long
+                    )
+                }
+            }
         }
     }
 
-    LaunchedEffect(isOnline) {
-        if (!isOnline) snackHost.showSnackbar(
-            "No internet connection",
-            withDismissAction = true,
-            duration = SnackbarDuration.Indefinite
-        )
+    LaunchedEffect(state.items.isEmpty(), isOnline) {
+        if (state.items.isEmpty() && isOnline)
+            vm.handleIntent(GalleryIntent.LoadInitial)
     }
 
     GalleryScreenContent(
         state = state,
         onSearch = { it ->
-            if (!isOnline) return@GalleryScreenContent
-            vm.handleIntent(GalleryIntent.Search(it))
+            RequireOnlineOrSnackbar(isOnline, snackHost, scope) {
+                vm.handleIntent(GalleryIntent.Search(it))
+            }
         },
-        onOpen = { it -> if (isOnline) onOpen(it) },
+        onOpen = { it ->
+            RequireOnlineOrSnackbar(isOnline, snackHost, scope) { onOpen(it) }
+        },
         onRetry = {
-            if (isOnline) vm.handleIntent(GalleryIntent.Retry)
+            RequireOnlineOrSnackbar(isOnline, snackHost, scope) {
+                vm.handleIntent(GalleryIntent.Retry)
+            }
         },
         onLoadNext = {
-            if (isOnline) vm.handleIntent(GalleryIntent.LoadNextPage)
+            RequireOnlineOrSnackbar(isOnline, snackHost, scope) {
+                vm.handleIntent(GalleryIntent.LoadNextPage)
+            }
         },
-        effects = vm.effects
+        effects = null,
+        snackbarHost = snackHost
     )
 }
 
@@ -118,9 +119,9 @@ fun GalleryScreenContent(
     onOpen: (Photo) -> Unit,
     onRetry: () -> Unit,
     onLoadNext: () -> Unit,
-    effects: Flow<GalleryEffect>? = null
+    effects: Flow<GalleryEffect>? = null,
+    snackbarHost: SnackbarHostState
 ) {
-    val snackHost = remember { SnackbarHostState() }
     val context = LocalContext.current
     val imageLoader = remember(context) { provideImageLoader(context) }
     val gridState = rememberSaveable(saver = LazyGridState.Saver) { LazyGridState() }
@@ -128,7 +129,7 @@ fun GalleryScreenContent(
     LaunchedEffect(effects) {
         effects?.collect { effect ->
             if (effect is GalleryEffect.ShowMessage) {
-                val result = snackHost.showSnackbar(
+                val result = snackbarHost.showSnackbar(
                     message = effect.message,
                     actionLabel = "Retry",
                     withDismissAction = true,
@@ -140,7 +141,7 @@ fun GalleryScreenContent(
     }
 
     Scaffold(
-        snackbarHost = { SnackbarHost(snackHost) }
+        snackbarHost = { SnackbarHost(snackbarHost) }
     ) { padding ->
         Column(Modifier.fillMaxSize()) {
             StickySearchBar(
@@ -266,13 +267,15 @@ private fun GalleryScreen_Preview() {
         )
     }
     MaterialTheme {
+        val host = remember { SnackbarHostState() }
         GalleryScreenContent(
             state = previewState,
             onSearch = {},
             onOpen = {},
             onRetry = {},
             onLoadNext = {},
-            effects = emptyFlow()
+            effects = emptyFlow(),
+            snackbarHost = host
         )
     }
 }
@@ -281,13 +284,15 @@ private fun GalleryScreen_Preview() {
 @Composable
 private fun GalleryScreen_Empty_Preview() {
     MaterialTheme {
+        val host = remember { SnackbarHostState() }
         GalleryScreenContent(
             state = GalleryState(),
             onSearch = {},
             onOpen = {},
             onRetry = {},
             onLoadNext = {},
-            effects = emptyFlow()
+            effects = emptyFlow(),
+            snackbarHost = host
         )
     }
 }

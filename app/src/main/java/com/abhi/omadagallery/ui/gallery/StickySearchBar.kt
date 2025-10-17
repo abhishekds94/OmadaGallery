@@ -11,6 +11,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.res.stringResource
+import com.abhi.omadagallery.R
 
 @Composable
 fun StickySearchBar(
@@ -22,6 +24,7 @@ fun StickySearchBar(
     Surface(
         tonalElevation = 2.dp,
         shadowElevation = 2.dp,
+        color = MaterialTheme.colorScheme.primary,
     ) {
         Column(
             modifier = Modifier
@@ -32,7 +35,7 @@ fun StickySearchBar(
                 value = text,
                 onValueChange = { text = it },
                 singleLine = true,
-                placeholder = { Text("Search photos...") },
+                placeholder = { Text(stringResource(R.string.search_photos_text)) },
                 modifier = Modifier
                     .fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),

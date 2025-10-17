@@ -1,5 +1,9 @@
 <resources>
     <string name="app_name">Omada Gallery</string>
-    <string name="search_photos">Search photos..</string>
     <string name="btn_retry">Retry</string>
+    <string name="back">Back</string>
+    <string name="photo_not_available">Photo not available</string>
+    <string name="loading_details">Loading details…</string>
+    <string name="retry">Retry</string>
+    <string name="search_photos_text">Search Photos…</string>
 </resources>
