@@ -5,12 +5,18 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import com.abhi.omadagallery.core.provideImageLoader
 import com.abhi.omadagallery.domain.model.Photo
+import com.abhi.omadagallery.ui.gallery.GalleryEffect
+import kotlinx.coroutines.flow.Flow
 
 @Composable
 fun PhotoDetailScreen(
@@ -30,8 +36,27 @@ fun PhotoDetailScreen(
 fun PhotoDetailContent(
     state: DetailState,
     onBack: () -> Unit,
-    onRetry: () -> Unit
+    onRetry: () -> Unit,
+    effects: Flow<GalleryEffect>? = null
 ) {
+    val snackHost = remember { SnackbarHostState() }
+    val context = LocalContext.current
+    val imageLoader = remember(context) { provideImageLoader(context) }
+
+    LaunchedEffect(effects) {
+        effects?.collect { effect ->
+            if (effect is GalleryEffect.ShowMessage) {
+                val result = snackHost.showSnackbar(
+                    message = effect.message,
+                    actionLabel = "Retry",
+                    withDismissAction = true,
+                    duration = SnackbarDuration.Long
+                )
+                if (result == SnackbarResult.ActionPerformed) onRetry()
+            }
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -45,12 +70,14 @@ fun PhotoDetailContent(
         }
     ) { padding ->
         when {
-            state.isLoading -> LinearProgressIndicator(
-                modifier = Modifier
-                    .padding(padding)
-                    .padding(16.dp)
+            state.isLoading -> Box(
+                Modifier
                     .fillMaxWidth()
-            )
+                    .padding(16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
 
             state.error != null -> Column(
                 Modifier
@@ -63,13 +90,18 @@ fun PhotoDetailContent(
                 FilledTonalButton(onClick = onRetry) { Text("Retry") }
             }
 
-            state.photo != null -> AsyncImage(
-                model = state.photo.fullUrl,
-                contentDescription = state.photo.title,
-                modifier = Modifier
-                    .padding(padding)
-                    .fillMaxSize()
-            )
+            state.photo != null ->
+                AsyncImage(
+                    model = ImageRequest
+                        .Builder(context)
+                        .data(state.photo.fullUrl)
+                        .build(),
+                    imageLoader = imageLoader,
+                    contentDescription = state.photo.title,
+                    modifier = Modifier
+                        .padding(padding)
+                        .fillMaxSize()
+                )
 
             else -> Column(
                 Modifier

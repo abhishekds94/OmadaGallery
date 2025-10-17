@@ -1,9 +1,13 @@
 package com.abhi.omadagallery.ui.gallery
 
+import android.R.attr.contentDescription
+import android.content.res.Configuration
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -13,20 +17,27 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -36,18 +47,24 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import coil.compose.AsyncImagePainter
 import coil.request.ImageRequest
 import com.abhi.omadagallery.R
+import com.abhi.omadagallery.core.provideImageLoader
 import com.abhi.omadagallery.domain.model.Photo
+import com.abhi.omadagallery.ui.NetworkHolderViewModel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 
@@ -57,22 +74,37 @@ fun GalleryScreen(
     onOpen: (Photo) -> Unit
 ) {
     val state by vm.state.collectAsState()
+    val snackHost = remember { SnackbarHostState() }
+
+    val networkVM: NetworkHolderViewModel = hiltViewModel()
+    val isOnline by networkVM.monitor.online.collectAsState()
 
     LaunchedEffect(Unit) {
-        vm.handleIntent(GalleryIntent.LoadInitial)
+        if (state.items.isEmpty()) {
+            vm.handleIntent(GalleryIntent.LoadInitial)
+        }
+    }
+
+    LaunchedEffect(isOnline) {
+        if (!isOnline) snackHost.showSnackbar(
+            "No internet connection",
+            withDismissAction = true,
+            duration = SnackbarDuration.Indefinite
+        )
     }
 
     GalleryScreenContent(
         state = state,
         onSearch = { it ->
+            if (!isOnline) return@GalleryScreenContent
             vm.handleIntent(GalleryIntent.Search(it))
         },
-        onOpen = onOpen,
+        onOpen = { it -> if (isOnline) onOpen(it) },
         onRetry = {
-            vm.handleIntent(GalleryIntent.Retry)
+            if (isOnline) vm.handleIntent(GalleryIntent.Retry)
         },
         onLoadNext = {
-            vm.handleIntent(GalleryIntent.LoadNextPage)
+            if (isOnline) vm.handleIntent(GalleryIntent.LoadNextPage)
         },
         effects = vm.effects
     )
@@ -89,26 +121,32 @@ fun GalleryScreenContent(
     effects: Flow<GalleryEffect>? = null
 ) {
     val snackHost = remember { SnackbarHostState() }
+    val context = LocalContext.current
+    val imageLoader = remember(context) { provideImageLoader(context) }
+    val gridState = rememberSaveable(saver = LazyGridState.Saver) { LazyGridState() }
 
     LaunchedEffect(effects) {
-        effects?.collect {
-            if (it is GalleryEffect.ShowMessage) {
-                snackHost.showSnackbar(it.message)
+        effects?.collect { effect ->
+            if (effect is GalleryEffect.ShowMessage) {
+                val result = snackHost.showSnackbar(
+                    message = effect.message,
+                    actionLabel = "Retry",
+                    withDismissAction = true,
+                    duration = SnackbarDuration.Long
+                )
+                if (result == SnackbarResult.ActionPerformed) onRetry()
             }
         }
     }
 
     Scaffold(
-        topBar = {
-            SearchTopBar(
-                query = state.query.orEmpty(),
-                onSubmit = onSearch
-            )
-        },
         snackbarHost = { SnackbarHost(snackHost) }
     ) { padding ->
-        Box(Modifier.padding(padding)) {
-            val gridState = rememberLazyGridState()
+        Column(Modifier.fillMaxSize()) {
+            StickySearchBar(
+                initialQuery = state.query.orEmpty(),
+                onSubmit = onSearch
+            )
             LazyVerticalGrid(
                 columns = GridCells.Fixed(3),
                 state = gridState,
@@ -120,11 +158,20 @@ fun GalleryScreenContent(
                 itemsIndexed(
                     state.items,
                     key = { index, item -> "${item.id}-$index" }) { _, photo ->
+
+                    var imgState by remember {
+                        mutableStateOf<AsyncImagePainter.State>(
+                            AsyncImagePainter.State.Empty
+                        )
+                    }
+
                     AsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
+                        model = ImageRequest
+                            .Builder(context)
                             .data(photo.thumbnailUrl)
                             .crossfade(true)
                             .build(),
+                        imageLoader = imageLoader,
                         contentDescription = photo.title,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -134,11 +181,26 @@ fun GalleryScreenContent(
                                 onClick = { onOpen(photo) }
                             )
                     )
+
+                    if (imgState is AsyncImagePainter.State.Loading) {
+                        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(strokeWidth = 2.dp)
+                        }
+                    }
+
                 }
 
                 item(span = { GridItemSpan(maxCurrentLineSpan) }) {
                     when {
-                        state.isLoading -> LinearProgressIndicator(Modifier.fillMaxWidth())
+                        state.isLoading -> Box(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator()
+                        }
+
                         !state.endReached && state.items.isNotEmpty() -> {
                             LaunchedEffect(state.items.size, state.page) {
                                 onLoadNext()
@@ -159,25 +221,6 @@ fun GalleryScreenContent(
             }
         }
     }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun SearchTopBar(query: String, onSubmit: (String) -> Unit) {
-    var text by rememberSaveable { mutableStateOf(query) }
-    TopAppBar(
-        title = {
-            OutlinedTextField(
-                value = text,
-                onValueChange = { text = it },
-                singleLine = true,
-                placeholder = { Text(stringResource(R.string.search_photos)) },
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions(onSearch = { onSubmit(text) }),
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
-    )
 }
 
 /* -------------------- PREVIEWS -------------------- */
@@ -207,7 +250,7 @@ private fun samplePhotos() = listOf(
 @Preview(
     showBackground = true,
     name = "Gallery – Dark",
-    uiMode = android.content.res.Configuration.UI_MODE_NIGHT_YES
+    uiMode = Configuration.UI_MODE_NIGHT_YES
 )
 @Composable
 private fun GalleryScreen_Preview() {
